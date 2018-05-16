@@ -1,6 +1,9 @@
 # Eventstore Object Mapper
 
 This maps events to specific objects in an orm like fashon
+```angular2html
+npm i eventstore-objectmapper
+```
 ### Required Dependencies
 
 Need Node 8 for async await syntax
