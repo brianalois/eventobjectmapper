@@ -16,15 +16,28 @@ npm i eventstore
 ## Doc Menu
 1. [Getting Started](#getting-started)
 2. [Example Model](#example-model)
+3. [Instance Properties](#instance-properties)
+    1. [dataValues](#dataValues)
+    2. [latestDataValues](#latestDataValues)
+    3. [selectedRevision](#selectedRevision)
+    4. [latestRevision](#latestRevision)
+    5. [primaryValue](#primaryValue)
 3. [Instance Methods](#instance-methods)
-    1. [saveData](#savedata)
-    2. [takeSnapshot](#takesnapshot)
-    3. [loadRevision](#loadrevision)
+    1. [saveData](#saveData)
+    2. [saveWhole](#saveWhole)
+    3. [takeSnapshot](#takeSnapshot)
+    4. [saveCurrentValues](#saveCurrentValues) 
+    5. [goToRevision](#goToRevision)
+    6. [goToLatestRevision](#goToLatestRevision)
 4. [Static Methods](#static-methods)
     1. [create](#create)
     2. [findById](#findById)
     3. [createOrFind](#createOrFind)
     4. [createOrUpdate](#createOrUpdate)
+    5. [findOneAndUpdate](#findOneAndUpdate)
+5. [Static Getters](#static-getters)
+    1. [schema](schema)
+    2. [snapshotFrequency](snapshotFrequency)
 ## Getting Started
 make a directory called models, or eventmodels.
 ```angular2html
@@ -33,9 +46,10 @@ const {Model} = require('eventstore-objectmapper');
 
 let es = eventstore();
 
-es.init(function(){
-    Model.init(es); //injects the eventstore into the object mapper
-)
+Model.init(es).then(()=>{
+    //ready to use
+}
+
 ```
 
 ## Example Model
@@ -59,23 +73,76 @@ class User extends Model {
 module.exports = User;
 ```
 
+## Instance Properties
+
+### dataValues
+```angularjs
+let user = await User.create({id:1, first:'Brian', last:'Alois'});
+
+console.log('output:', user.dataValues);
+
+//output: {id:1, first:'Brian', last:'Alois'}
+
+```
+
+### latestDataValues
+```angularjs
+let user = await User.create({id:1, first:'Brian', last:'Alois'});
+
+await user.saveData({first:'John'});
+
+await user.goToRevision(0);
+
+console.log('selected revision: ', user.dataValues, '\n, latest: ',user.latestDataValues)
+//selected revision:  {id:1, first:'Brian', last:'Alois'}, 
+//latest: {id:1, first:'John', last:'Alois'}
+
+```
+
 ## Instance Methods
 
 ### saveData
+The saveData method adds and updates data with what is given. 
 ```angular2html
 const User = require('./models/user');
 
-let user = await User.findById(1);
+let user = await User.create({id:1, first:'Brian', last:'Alois'});
 
-await user.saveData({firstName:'John', lastName:'Doe'});
+await user.saveData({info:'software', last:null});
+
+console.log(user.dataValues);
+//{id:1, first:'Brian', last:null, info:'software'}
+```
+### saveWhole
+This is a little different from saveData in that the most updated revision becomes entirely the input
+```angular2html
+const User = require('./models/user');
+
+let user = await User.create({id:1, first:'Brian', last:'Alois'});
+
+await user.saveWhole({id: 1, info:'software'});
+
+console.log(user.dataValues);
+//{id: 1, first:null, last: null, info:'software'}
 ```
 ### takeSnapshot
+takes snapshot of latest values that were saved.
 ```angular2html
 await user.takeSnapshot();
 ```
-### loadRevision
+### goToRevision
 ```angular2html
-await user.loadRevision(2);
+await user = await User.create({id:1, first:'brian', last:'alois'});
+console.log(user.selectedRevision, user.first);
+//0 brian
+
+await user.saveData({first:'John'});
+console.log(user.selectedRevision, user.first);
+//1 John
+
+await user.goToRevision(0);
+console.log(user.selectedRevision, user.first);
+//0 brian
 ```
 
 ## Static Methods
@@ -93,15 +160,66 @@ const User = require('./models/user');
 let user = await User.findById(1);
 ```
 ### createOrFind
+Method either finds and returns instance or creates it if it doesn't exist
 ```angular2html
 const User = require('./models/user');
 
 let user = await User.createOrFind({id:1, firstName:'Brian'});
 ```
 ### createOrUpdate
-
+Method either updates existing instance based on primary key, or if one does not exist
+with that primary it creates it
 ```angular2html
 const User = require('./models/user');
 
 let user = await User.createOrUpdate({id:1, firstName:'Brian'});
+```
+
+### findOneAndUpdate
+finds one based on primary value, in this case is id, and updates it.
+```angular2html
+let user = await User.findOneAndUpdate({id:1, firstName:'Brian'});
+```
+if upsert option is set to true it will create it if it is not found
+```angularjs
+let user = await User.findOneAndUpdate({id:1, firstName:'Brian'}, {upsert:true});
+```
+
+## Static Getters
+### schema
+This is necessary, particularly the part where there is a key that is primary;
+```angularjs
+class User extends Model {
+    constructor(id){
+        super(id);
+    }
+
+    static get schema(){
+        return {
+            id:{type:"Number", primary:true},
+            name:{type:"String"}
+        }
+    }
+}
+```
+
+### snapshotFrequency
+by defualt it is set to take a snapshot at every 25 events, or saves/changes to the data. However, this can be changed.
+```angularjs
+class User extends Model {
+    constructor(id){
+        super(id);
+    }
+
+    static get schema(){
+        return {
+            id:{type:"Number", primary:true},
+            name:{type:"String"}
+        }
+    }
+    
+    static get snapshotFrequency(){
+        return 10;
+    }
+}
 ```
