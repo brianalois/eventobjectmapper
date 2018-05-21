@@ -1,12 +1,13 @@
 const _ = require('lodash');
 const {to} = require('await-to-js');
 const { diff, addedDiff, deletedDiff, updatedDiff, detailedDiff } = require('deep-object-diff');
+const cleanDeep = require('clean-deep');
 
 module.exports.Model = class Model {
 
     loadGetters(json, latestJson){
-        this.dataValues         = json;
-        this.latestDataValues   = latestJson;
+        this.dataValues         = cleanDeep(json, {emptyArrays:false, emptyObjects:false, emptyStrings:false});
+        this.latestDataValues   = cleanDeep(json, {emptyArrays:false, emptyObjects:false, emptyStrings:false});
 
         for( let key in this.dataValues){
             Object.defineProperty(this, key, {
@@ -117,7 +118,8 @@ module.exports.Model = class Model {
     }
 
     async takeSnapshot(){
-        let [err, data] = await to(this.static.TakeSnapshot(this.primaryValue, this.latestDataValues, this.latestStream));
+        let data = cleanDeep(this.latestDataValues, {emptyArrays:false, emptyObjects:false, emptyStrings:false})
+        let [err, data] = await to(this.static.TakeSnapshot(this.primaryValue, data, this.latestStream));
         if(err) throw err;
 
         return data;
