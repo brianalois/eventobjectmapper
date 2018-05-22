@@ -3,11 +3,15 @@ const {to} = require('await-to-js');
 const { diff, addedDiff, deletedDiff, updatedDiff, detailedDiff } = require('deep-object-diff');
 const cleanDeep = require('clean-deep');
 
+function clean(data){
+    return cleanDeep(data, {emptyArrays:false, emptyObjects:false, emptyStrings:false});
+}
+
 module.exports.Model = class Model {
 
     loadGetters(json, latestJson){
-        this.dataValues         = cleanDeep(json, {emptyArrays:false, emptyObjects:false, emptyStrings:false});
-        this.latestDataValues   = cleanDeep(json, {emptyArrays:false, emptyObjects:false, emptyStrings:false});
+        this.dataValues         = clean(json);
+        this.latestDataValues   = clean(json);
 
         for( let key in this.dataValues){
             Object.defineProperty(this, key, {
@@ -122,7 +126,7 @@ module.exports.Model = class Model {
     }
 
     async takeSnapshot(){
-        let data = cleanDeep(this.latestDataValues, {emptyArrays:false, emptyObjects:false, emptyStrings:false})
+        let data = clean(this.latestDataValues);
         let [err, data] = await to(this.static.TakeSnapshot(this.primaryValue, data, this.latestStream));
         if(err) throw err;
 
@@ -146,15 +150,18 @@ module.exports.Model = class Model {
 
     saveWhole(data){//this one will process updating data that was removed
         let old_data = this.latestDataValues;
-        let difference = diff(old_data, data);
+        let new_data = clean(data);
+        let difference = diff(old_data, new_data);
 
         return this.saveEvent(difference);
     }
 
     saveData(data){
         let old_data = this.latestDataValues;
-        let added_data   = addedDiff(old_data, data);
-        let updated_data = updatedDiff(old_data, data);
+        let new_data = clean(data);
+
+        let added_data   = addedDiff(old_data, new_data);
+        let updated_data = updatedDiff(old_data, new_data);
 
         let changed_data = _.merge({}, added_data, updated_data);
 
