@@ -18,26 +18,28 @@ npm i eventstore
 2. [Example Model](#example-model)
 3. [Instance Properties](#instance-properties)
     1. [dataValues](#dataValues)
-    2. [latestDataValues](#latestDataValues)
-    3. [selectedRevision](#selectedRevision)
-    4. [latestRevision](#latestRevision)
-    5. [primaryValue](#primaryValue)
+    2. [latestDataValues](#latestdatavalues)
+    3. [selectedRevision](#selectedrevision)
+    4. [latestRevision](#latestrevision)
+    5. [primaryValue](#primaryvalue)
+    6. [getHistory](#gethistory)
 3. [Instance Methods](#instance-methods)
-    1. [saveData](#saveData)
-    2. [saveWhole](#saveWhole)
-    3. [takeSnapshot](#takeSnapshot)
-    4. [saveCurrentValues](#saveCurrentValues) 
-    5. [goToRevision](#goToRevision)
-    6. [goToLatestRevision](#goToLatestRevision)
+    1. [saveData](#savedata)
+    2. [saveWhole](#savewhole)
+    3. [takeSnapshot](#takesnapshot)
+    4. [saveCurrentValues](#savecurrentvalues) 
+    5. [goToRevision](#gotorevision)
+    6. [goToLatestRevision](#gotolatestrevision)
 4. [Static Methods](#static-methods)
     1. [create](#create)
-    2. [findById](#findById)
-    3. [createOrFind](#createOrFind)
-    4. [createOrUpdate](#createOrUpdate)
-    5. [findOneAndUpdate](#findOneAndUpdate)
+    2. [findById](#findbyid)
+    3. [createOrFind](#createorfind)
+    4. [createOrUpdate](#createorupdate)
+    5. [findOneAndUpdate](#findoneandupdate)
+    6. [getHistory](#gethistory)
 5. [Static Getters](#static-getters)
     1. [schema](schema)
-    2. [snapshotFrequency](snapshotFrequency)
+    2. [snapshotFrequency](snapshotfrequency)
 ## Getting Started
 make a directory called models, or eventmodels.
 ```angular2html
@@ -145,6 +147,11 @@ console.log(user.selectedRevision, user.first);
 //0 brian
 ```
 
+### getHistory
+returns history of all the events of the instance
+```angularjs
+let history = await user.getHistory();
+```
 ## Static Methods
 
 ### create
@@ -181,10 +188,23 @@ finds one based on primary value, in this case is id, and updates it.
 let user = await User.findOneAndUpdate({id:1, firstName:'Brian'});
 ```
 if upsert option is set to true it will create it if it is not found
+
 ```angularjs
 let user = await User.findOneAndUpdate({id:1, firstName:'Brian'}, {upsert:true});
 ```
 
+the defualt update is a saveData. If you want to do a saveWhole pass in the option whole=true
+```angularjs
+let user = await User.findOneAndUpdate({id:1, firstName:'Brian'}, {upsert:true, whole:true});
+
+```
+
+### getHistory
+get all the events and dates that events were added
+```
+let user_id = 2
+let history = await User.getHisory(user_id);
+```
 ## Static Getters
 ### schema
 This is necessary, particularly the part where there is a key that is primary;

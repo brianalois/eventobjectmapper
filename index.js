@@ -36,6 +36,10 @@ module.exports.Model = class Model {
         });
     }
 
+    getHistory(){
+        return this.static.getHistory(this.primaryValue);
+    }
+
     loadUpdatedValues(info){
         this.addSnapshotStream(info);
         let json       = this.latestFromEvents('selected');
@@ -265,6 +269,24 @@ module.exports.Model = class Model {
         });
     }
 
+    static getEventStream(id){
+        let query = {aggregateId: id, aggregate: this.ModelName};
+        return new Promise((resolve, reject)=>{
+            this.es.getEventStream(query, function(err, stream){
+                if(err) reject(err);
+                resolve(stream);
+            })
+        });
+    }
+
+    static async getHistory(id){
+        let err, stream;
+        [err, stream] = await to(this.getEventStream(id));
+        if(err) throw err;
+
+        return stream.events;
+    }
+
     static fromSnapshot(query, revision){
         if(typeof revision === 'undefined'){
             return new Promise((resolve, reject)=>{
@@ -375,6 +397,7 @@ module.exports.Model = class Model {
     static async findOneAndUpdate(data, options){
         let defaults = {
             upsert:false,
+            whole:false,
         };
 
         options = Object.assign(defaults, options);
@@ -387,6 +410,8 @@ module.exports.Model = class Model {
         if(err) throw err;
 
         if(instance){
+            if(options.whole) return instance.saveWhole(data);
+
             return instance.saveData(data);
         }else{
             if(options.upsert){
@@ -401,7 +426,12 @@ module.exports.Model = class Model {
         }
     }
 
-    static async createOrUpdate(data){
+    static async createOrUpdate(data, options){
+        let defaults = {
+            whole:false,
+        };
+        options = Object.assign(defaults, options);
+
         let id = data[this.primary_key];
 
         let err, instance;
@@ -410,6 +440,8 @@ module.exports.Model = class Model {
         if(err) throw err;
 
         if(instance){
+            if(options.whole) return instance.saveWhole(data);
+
             return instance.saveData(data);
         }else{
             [err, instance] = await to(this.create(data));
@@ -435,6 +467,7 @@ module.exports.Model = class Model {
             [err, info] = await to(this.getFromSnapshot(id));
         }
 
+        if(err) throw err;
 
         if(!info.selectedSnapshot) return null;
 
@@ -442,6 +475,12 @@ module.exports.Model = class Model {
 
         if(options.revision !== null && instance.latestRevision < options.revision){
             throw `There is no revision ${options.revision}. The latest revision is ${instance.latestRevision}.`;
+        }
+
+        if(options.revision < 0){
+            let new_revision = +instance.latestRevision+options.revision;
+            [err, instance] = await to(instance.goToRevision(new_revision));
+            if(err) throw err;
         }
 
         return instance;
